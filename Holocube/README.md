@@ -18,6 +18,9 @@ SD card slot, CP210X, RGB, light sensor, an antenna and an LDO whose functions a
 | Antenna        | ...Text     |
 | LDO            | ...Text     |
 
+[See more details](https://easyeda.com/fedy0/game2048)
+
+
 The extension board's [schematics](./hw/schematics) and [PCB](./hw/PCB/extension_board/) of the Holocube consists of an LCD and a 
 P-MOSFET whose fuctions are as follows:
 
@@ -26,7 +29,7 @@ P-MOSFET whose fuctions are as follows:
 | LCD            | ...Text     |
 | P-MOSFET       | ...Text     |
 
-[See more details](https://easyeda.com/fedy0/game2048)
+[See more details](https://easyeda.com/fedy0/holocube-daughterboard)
 
 
 ## Software
