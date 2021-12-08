@@ -4,7 +4,7 @@ This directory contains the schematics, PCB, test firmware and app software for 
 
 
 ## Hardware
-The main board's [schematics](./hw/schematics) and [PCB](./hw/PCB/) of the Holocube consists of an ESP32, IMU sensor,
+The main board's [schematics](./hw/schematics) and [PCB](./hw/PCB/main_board/) of the Holocube consists of an ESP32, IMU sensor,
 SD card slot, CP210X, RGB, light sensor, an antenna and an LDO whose functions are as follows:
 
 | Component      | Function    |
@@ -18,7 +18,7 @@ SD card slot, CP210X, RGB, light sensor, an antenna and an LDO whose functions a
 | Antenna        | ...Text     |
 | LDO            | ...Text     |
 
-The extension board's [schematics](./hw/schematics) and [PCB](./hw/PCB/) of the Holocube consists of an LCD and a 
+The extension board's [schematics](./hw/schematics) and [PCB](./hw/PCB/extension_board/) of the Holocube consists of an LCD and a 
 P-MOSFET whose fuctions are as follows:
 
 | Component      | Function    |
