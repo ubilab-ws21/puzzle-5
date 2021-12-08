@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Holocube
 The Holocube is a pseudo-holographic transparent display desktop station with network function and hosts the game2048 app.
 This directory contains the schematics, PCB, test firmware and app software for the Holocube.
