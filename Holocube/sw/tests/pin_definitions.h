@@ -1,8 +1,12 @@
-/*
+/* pin_definitions.h
  * This file contains the pin definitions/interfaces for the Holocube.
  * It also contains addresses for I2C slaves. Include this file in all tests.
+ *      Created on: Dec 8, 2021
  *      Author: fedy0
 */
+
+#ifndef PIN_DEFINITIONS_H_
+#define PIN_DEFINITIONS_H_
 
 // Pin Interfaces
 #define RGB_PIN                GPIO_NUM_4
@@ -26,3 +30,4 @@
 #define LIGHT_SENSOR_ADDRESS   0x23
 #define IMU_SENSOR_ADDRESS     0x68
 
+#endif /* PIN_DEFINITIONS_H_ */
