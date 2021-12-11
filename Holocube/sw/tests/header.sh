@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Run header.sh -c to copy the header to the individual test directory.
+# This is needed for arduino project/sketch directory structure.
+
 HEADER=pin_definitions.h
 
 if [ -f $HEADER ]
