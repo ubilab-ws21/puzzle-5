@@ -24,22 +24,21 @@
 */
 
 /*
- This program tests the Holocube RGB interface
+ This program tests the Holocube IMU Inertia sensor interface
  Remember to copy pin_definitions.h into soc_test folder or run ../header.sh -c
 */
 
 #include "pin_definitions.h"
 #include "mpu9250.h"
 
-/* Mpu9250 object, I2C bus,  0x68 address */
-bfs::Mpu9250 imu(&Wire, 0x68);
+bfs::Mpu9250 imu(&Wire, IMU_SENSOR_ADDRESS);
 
 void setup() {
   /* Serial to display data */
   Serial.begin(115200);
   while(!Serial) {}
   /* Start the I2C bus */
-  Wire.begin();
+  Wire.begin(SYSTEM_I2C_SDA_PIN, SYSTEM_I2C_SCL_PIN);
   Wire.setClock(400000);
   /* Initialize and configure IMU */
   if (!imu.Begin()) {
