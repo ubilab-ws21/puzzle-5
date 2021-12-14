@@ -20,7 +20,7 @@
 #define SDCARD_SPI_MOSI_PIN    GPIO_NUM_13
 #define SDCARD_SPI_MISO_PIN    GPIO_NUM_26
 #define LCD_RESET_PIN          GPIO_NUM_23
-#define LCD_BACKLIGHT          GPIO_NUM_19
+#define LCD_BACKLIGHT_PIN      GPIO_NUM_19
 #define LCD_SPI_DC_PIN         GPIO_NUM_0
 #define LCD_SPI_CLK_PIN        GPIO_NUM_5
 #define LCD_SPI_MOSI_PIN       GPIO_NUM_18
