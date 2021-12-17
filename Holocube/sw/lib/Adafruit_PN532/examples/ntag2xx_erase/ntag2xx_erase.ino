@@ -1,18 +1,34 @@
+/**************************************************************************/
+/*! 
+    @file     ntag2xx_erase.pde
+    @author   KTOWN (Adafruit Industries)
+    @license  BSD (see license.txt)
 
-/* This program tests the Holocube SD Card interface
- * Remember to copy pin_definitions.h into soc_test folder or run ../header.sh -c
- */
+    This example will wait for any NTAG203 or NTAG213 card or tag,
+    and will attempt to erase the user data section of the card (setting
+    all user bytes to 0x00)
 
-#include "pin_definitions.h"
+    This is an example sketch for the Adafruit PN532 NFC/RFID breakout boards
+    This library works with the Adafruit NFC breakout 
+      ----> https://www.adafruit.com/products/364
+ 
+    Check out the links above for our tutorials and wiring diagrams 
+    These chips use SPI or I2C to communicate.
+
+    Adafruit invests time and resources providing this open source code, 
+    please support Adafruit and open-source hardware by purchasing 
+    products from Adafruit!
+*/
+/**************************************************************************/
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
 
 // If using the breakout with SPI, define the pins for SPI communication.
-#define PN532_SCK  (18)
-#define PN532_MOSI (23)
-#define PN532_SS   (5)
-#define PN532_MISO (19)
+#define PN532_SCK  (2)
+#define PN532_MOSI (3)
+#define PN532_SS   (4)
+#define PN532_MISO (5)
 
 // If using the breakout or shield with I2C, define just the pins connected
 // to the IRQ and reset lines.  Use the values below (2, 3) for the shield!
@@ -34,10 +50,10 @@ Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 // Or use this line for a breakout or shield with an I2C connection:
 //Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET);
 
-
 void setup(void) {
   Serial.begin(115200);
   while (!Serial) delay(10); // for Leonardo/Micro/Zero
+
   Serial.println("Hello!");
 
   nfc.begin();
@@ -80,7 +96,7 @@ void loop(void) {
       uint8_t data[32];
       
       // We probably have an NTAG2xx card (though it could be Ultralight as well)
-      Serial.println("Seems to be an NTAG2xx tag (7 byte UID)");    
+      Serial.println("Seems to be an NTAG2xx tag (7 byte UID)");	  
       
       // NTAG2x3 cards have 39*4 bytes of user pages (156 user bytes),
       // starting at page 4 ... larger cards just add pages to the end of
@@ -95,12 +111,16 @@ void loop(void) {
       // NTAG 215       135     4             129
       // NTAG 216       231     4             225      
 
-      for (uint8_t i = 0; i < 42; i++) 
+      Serial.println("");
+      Serial.println("Writing 0x00 0x00 0x00 0x00 to pages 4..39");
+      Serial.println("");
+      for (uint8_t i = 4; i < 39; i++) 
       {
-        success = nfc.ntag2xx_ReadPage(i, data);
+        memset(data, 0, 4);
+        success = nfc.ntag2xx_WritePage(i, data);
         
         // Display the current page number
-        Serial.print("PAGE ");
+        Serial.print("Page ");
         if (i < 10)
         {
           Serial.print("0");
@@ -115,12 +135,11 @@ void loop(void) {
         // Display the results, depending on 'success'
         if (success) 
         {
-          // Dump the page data
-          nfc.PrintHexChar(data, 4);
+          Serial.println("Erased");
         }
         else
         {
-          Serial.println("Unable to read the requested page!");
+          Serial.println("Unable to write to the requested page!");
         }
       }      
     }
@@ -129,8 +148,14 @@ void loop(void) {
       Serial.println("This doesn't seem to be an NTAG203 tag (UUID length != 7 bytes)!");
     }
     
-    // [OPTIONAL] Wait a bit before trying again
-    delay(500);
-    Serial.println("\n\nPlace a card to read!");    
+    // Wait a bit before trying again
+    Serial.println("\n\nSend a character to scan another tag!");
+    Serial.flush();
+    while (!Serial.available());
+    while (Serial.available()) {
+    Serial.read();
+    }
+    Serial.flush();    
   }
 }
+

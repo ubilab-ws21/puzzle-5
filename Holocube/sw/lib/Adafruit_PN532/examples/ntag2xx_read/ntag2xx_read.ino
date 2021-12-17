@@ -1,18 +1,33 @@
+/**************************************************************************/
+/*! 
+    @file     readntag203.pde
+    @author   KTOWN (Adafruit Industries)
+    @license  BSD (see license.txt)
 
-/* This program tests the Holocube SD Card interface
- * Remember to copy pin_definitions.h into soc_test folder or run ../header.sh -c
- */
+    This example will wait for any NTAG203 or NTAG213 card or tag,
+    and will attempt to read from it.
 
-#include "pin_definitions.h"
+    This is an example sketch for the Adafruit PN532 NFC/RFID breakout boards
+    This library works with the Adafruit NFC breakout 
+      ----> https://www.adafruit.com/products/364
+ 
+    Check out the links above for our tutorials and wiring diagrams 
+    These chips use SPI or I2C to communicate.
+
+    Adafruit invests time and resources providing this open source code, 
+    please support Adafruit and open-source hardware by purchasing 
+    products from Adafruit!
+*/
+/**************************************************************************/
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
 
 // If using the breakout with SPI, define the pins for SPI communication.
-#define PN532_SCK  (18)
-#define PN532_MOSI (23)
-#define PN532_SS   (5)
-#define PN532_MISO (19)
+#define PN532_SCK  (2)
+#define PN532_MOSI (3)
+#define PN532_SS   (4)
+#define PN532_MISO (5)
 
 // If using the breakout or shield with I2C, define just the pins connected
 // to the IRQ and reset lines.  Use the values below (2, 3) for the shield!
@@ -38,6 +53,7 @@ Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 void setup(void) {
   Serial.begin(115200);
   while (!Serial) delay(10); // for Leonardo/Micro/Zero
+
   Serial.println("Hello!");
 
   nfc.begin();
@@ -80,7 +96,7 @@ void loop(void) {
       uint8_t data[32];
       
       // We probably have an NTAG2xx card (though it could be Ultralight as well)
-      Serial.println("Seems to be an NTAG2xx tag (7 byte UID)");    
+      Serial.println("Seems to be an NTAG2xx tag (7 byte UID)");	  
       
       // NTAG2x3 cards have 39*4 bytes of user pages (156 user bytes),
       // starting at page 4 ... larger cards just add pages to the end of
@@ -129,8 +145,14 @@ void loop(void) {
       Serial.println("This doesn't seem to be an NTAG203 tag (UUID length != 7 bytes)!");
     }
     
-    // [OPTIONAL] Wait a bit before trying again
-    delay(500);
-    Serial.println("\n\nPlace a card to read!");    
+    // Wait a bit before trying again
+    Serial.println("\n\nSend a character to scan another tag!");
+    Serial.flush();
+    while (!Serial.available());
+    while (Serial.available()) {
+    Serial.read();
+    }
+    Serial.flush();    
   }
 }
+
