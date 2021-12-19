@@ -1,0 +1,19 @@
+﻿生成启动时间为 2021/12/20 1:14:04。
+     1>项目“E:\c++_tencent_class\c_projects\2048\2048_1\2048_1.vcxproj”在节点 2 上(Build 个目标)。
+     1>ClCompile:
+         E:\vs2013\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Debug\2048_1.pch" /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt 2048_1.cpp
+         2048_1.cpp
+     1>e:\c++_tencent_class\c_projects\2048\2048_1\2048_1.cpp(1): warning C4603: “_CRT_SCURE_NO_WARNINGS”: 未定义宏或在预编译头使用后定义发生改变
+                 将宏添加到预编译头中，而不是在此处定义
+                 e:\c++_tencent_class\c_projects\2048\2048_1\2048_1.cpp(2) : 使用预编译头
+     1>e:\c++_tencent_class\c_projects\2048\2048_1\2048_1.cpp(22): warning C4996: 'sprintf': This function or variable may be unsafe. Consider using sprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 e:\vs2013\vc\include\stdio.h(356) : 参见“sprintf”的声明
+       Link:
+         E:\vs2013\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"E:\c++_tencent_class\c_projects\2048\Debug\2048_1.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"E:\c++_tencent_class\c_projects\2048\Debug\2048_1.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\c++_tencent_class\c_projects\2048\Debug\2048_1.lib" /MACHINE:X86 Debug\2048_1.obj
+         Debug\stdafx.obj
+         2048_1.vcxproj -> E:\c++_tencent_class\c_projects\2048\Debug\2048_1.exe
+     1>已完成生成项目“E:\c++_tencent_class\c_projects\2048\2048_1\2048_1.vcxproj”(Build 个目标)的操作。
+
+生成成功。
+
+已用时间 00:00:03.70
