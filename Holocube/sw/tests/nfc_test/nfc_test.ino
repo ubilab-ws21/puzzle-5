@@ -1,9 +1,6 @@
 
-/* This program tests the Holocube SD Card interface
- * Remember to copy pin_definitions.h into soc_test folder or run ../header.sh -c
- */
+/* This program tests the NFC tags and the PN532-based NFC reader */
 
-#include "pin_definitions.h"
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
