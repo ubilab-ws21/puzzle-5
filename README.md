@@ -10,11 +10,11 @@ A Solar storm hits the city which causes a power outage at a massive scale. A gr
 ## The Puzzle
 The objective of this puzzle is to recharge a super nuclear battery and reinstall it into the electric box in order to resume the power of the control room.
 
-Initially the battery is inside the electric box but the battery is discharged due to the sudden power outage. The nuclear battery charger is also inside the control room. It is being locked in a box for safety reason.
+Initially the battery is installed on the electric box but the battery is discharged due to the sudden power outage. The nuclear battery charger is also inside the control room. It is being locked in a box for safety reason.
 
-Next to the station is a small toy called HoloCube, which was built by the control room's staff as a interesting way to unlock the charger box in case the box's password is forgotten. The cube has the game 2048 loaded into it. (If you don't know about 2048, you can have a try [here](https://2048game.com/)).
+Next to the station is a small toy called HoloCube, which was built by the bored control room's technician as a funnier way to unlock the charger box in case the box's password is forgotten. The cube has the game 2048 loaded into it. (If you don't know about 2048, you can have a try [here](https://2048game.com/)).
 
-Thanks to the advanced technology, the battery is operated in fully wireless. It only need to be placed on the platform for a couple of seconds until full charged. Then place it back to the electric box to supply the power for the control room.
+Thanks to the advanced technology, the battery is operated in fully wireless. It only needs to be placed on the platform for a couple of seconds until full charged. Then place it back to the electric box to supply the power for the control room.
 
 The general flow of the puzzle is as shown below:
 
@@ -32,9 +32,9 @@ The proposed model of HoloCube for the puzzle is showcased below:
 
 <img src="docs/Presentations/img/Holo3.png" width="80%" />
 
-### Charger box
+### Charging Station
 
-The charger box is a wooden box locked by a mechanical lock. Inside the box is the wireless charging platform, which is technically a NFC reader. A LCD/LED will act as an indicator to show the battery level when the reader detects the battery. There is also LED lightings inside the box to prompt players to close the box after recharge.
+The charging station is a wooden box locked by a mechanical lock. Inside the box is the wireless charging platform (charger), which is technically a NFC reader. A LCD will act as a battery level indicator to. There are also LED lightings inside the box.
 
 Current outlook of the box:
 
@@ -42,15 +42,17 @@ Current outlook of the box:
 
 <img src="docs/Presentations/img/charger_block.png" width=50%>
 
-### Battery
+### Super Nuclear Battery
+
+The battery is the emergency power source of the control room but it is discharged at the beginning of the power outage. It should be placed back to the charging station to charge for a couple of seconds and then be placed back to the electric box to resume the power of the control room.
 
 Technically, the battery is simply a small plastic box with a NFC sticker at the bottom. No power is required for this portable item.
 
 ### Electric Box
 
-The main component of the electric box is a NFC reader with battery level indicator enclosed in a plastic box, which is similar to the platform inside the charger box.
+The main component of the electric box is a NFC reader with battery level indicator enclosed in a plastic box, which is similar to the charger inside the charging station.
 
-The cupboard in the control room is decided to be the electric box. The decorations required are to be discussed.
+It is proposed using the cupboard in the control room as the electric box. The decorations required are to be discussed.
 
 ### Connection Diagram
 
