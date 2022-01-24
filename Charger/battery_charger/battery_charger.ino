@@ -89,7 +89,6 @@ void setup() {
   lcd.createChar(LCD_LEFT_EDGE, LCD_CHAR_LEFT_EDGE);
   lcd.createChar(LCD_MID_EDGE, LCD_CHAR_MID_EDGE);
   lcd.createChar(LCD_RIGHT_EDGE, LCD_CHAR_RIGHT_EDGE);
-  lcd_printDefMsg();
   
   Serial.begin(115200);
   Serial.println("\nSerial: up");
@@ -98,6 +97,8 @@ void setup() {
     ESP.restart();
 #endif
   setupNFC();
+
+  lcd_printDefMsg();
 }
 
 void loop() {
@@ -154,10 +155,19 @@ bool setupWiFi(unsigned int timeout) {
   WiFi.begin(WLAN_SSID, WLAN_PASS);
   Serial.print("Connecting to SSID: ");
   Serial.print(WLAN_SSID);
+  lcd.clear();
+  lcd.home();
+  lcd.print("Connecting SSID:");
+  lcd.setCursor(0, 1);
+  lcd.print(WLAN_SSID);
+  lcd.setCursor(0,2);
   while(WiFi.status() != WL_CONNECTED && --counter) {
     Serial.print(".");
+    lcd.print(".");
     delay(500);
   }
+
+  lcd.clear();
 
   if(counter) {
     Serial.println("\nWiFi connected.\nIP address: ");
