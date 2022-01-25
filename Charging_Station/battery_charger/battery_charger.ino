@@ -3,6 +3,7 @@
  * Battery charger in the safe box
  */
 #include <WiFi.h>
+#include <PubSubClient.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_PN532.h>
@@ -18,6 +19,20 @@ const uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 #define WLAN_SSID "ssid"
 #define WLAN_PASS "passphase"
 #define WLAN_TIMEOUT 30
+
+// MQTT configurations
+#define MQTT_CLIENT_ID "Puzzle-5-charger"
+#define MQTT_BROKER_IP "BROKER_IP"
+#define MQTT_PORT 1883
+#define MQTT_USERNAME "USERNAME"
+#define MQTT_PASSWD "PASSWORD"
+const char* mqtt_sub_topics[] = {
+  "5/battery/1/level",
+  "5/battery/1/location",
+  "5/battery/1/uid"
+};
+WiFiClient mqttClient;
+PubSubClient mqtt(mqttClient);
 
 // NFC reader pinout (SPI mode)
 #define PN532_SCK  (18)
@@ -93,8 +108,10 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\nSerial: up");
 #if !DEBUG_OFFLINE
-  if(!setupWiFi(WLAN_TIMEOUT))
+  if(!setupWiFi(WLAN_TIMEOUT) || !setupMQTT()) {
+    delay(2000);
     ESP.restart();
+  }
 #endif
   setupNFC();
 
@@ -106,6 +123,26 @@ void loop() {
   uint8_t success;
   uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
   uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+
+#if !DEBUG_OFFLINE
+  if(WiFi.status() != WL_CONNECTED) { // Restart the board if WiFi is lost
+#if DEBUG_LCD
+    lcd.clear();
+    lcd.print("WiFi disconnect");
+#endif
+    delay(2000);
+    ESP.restart();
+  }
+
+  if(!mqtt.connected()) {  // Reconnect MQTT if connection is lost
+#if DEBUG_LCD
+    lcd.clear();
+    lcd.print("Reconnect MQTT");
+#endif
+    setupMQTT();
+  }
+  mqtt.loop();
+#endif
 
   Serial.println("\n\nPlace a card to read!");
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 2000);  // timeout=0 -> blocking
@@ -182,6 +219,62 @@ bool setupWiFi(unsigned int timeout) {
   lcd.clear();
   lcd.println("WiFi failed");
   return false;
+}
+
+bool setupMQTT()
+{
+  bool res;
+  Serial.printf("Connecting to MQTT broker at %s:%d", MQTT_BROKER_IP, MQTT_PORT);
+#if DEBUG_LCD
+  lcd.clear();
+  lcd.print("Connect MQTT");
+  lcd.setCursor(0, 1);
+  lcd.print(MQTT_BROKER_IP);
+#endif
+
+  mqtt.setServer(MQTT_BROKER_IP, MQTT_PORT);
+#if (defined MQTT_USERNAME) && (defined MQTT_PASSWD)
+  Serial.printf("Connecting with username: %s, password: %s\n", MQTT_USERNAME, MQTT_PASSWD);
+  res = mqtt.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWD);
+#else
+  res = mqtt.connect(MQTT_CLIENT_ID);
+#endif
+
+#if DEBUG_LCD
+  lcd.clear();
+#endif
+  if(res) {
+    Serial.println("Connected to MQTT server");
+    // Subscribe to topics
+    mqtt.setCallback(mqttCallback);
+    for(int i=0; i<sizeof (mqtt_sub_topics) / sizeof (const char *); i++) {
+      Serial.printf("Subscribing to topic: %s\n", mqtt_sub_topics[i]);
+      if(!mqtt.subscribe(mqtt_sub_topics[i])) {
+        Serial.printf("Failed to subscribe to the topic!");
+        return false;
+      }
+    }
+    
+  }
+  else {
+    Serial.println("Failed to connect to MQTT server");
+    lcd.clear();
+    lcd.println("MQTT failed!");
+  }
+  return res;
+}
+
+void mqttCallback(char* topic, byte* message, unsigned int length)
+{
+  Serial.printf("[MQTT][%s]: ", topic);
+
+  // Extract message
+  char* msg = (char*)malloc(length + 1);
+  memcpy(msg, message, length);
+  msg[length] = '\0';
+
+  Serial.println(msg);
+  free(msg);
 }
 
 void lcd_printDefMsg()
