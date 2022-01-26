@@ -13,7 +13,7 @@
 #define DEBUG_OFFLINE 0
 
 // Puzzle setup
-const uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
+uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 
 // Network configurations
 #define WLAN_SSID "ssid"
@@ -26,10 +26,13 @@ const uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 #define MQTT_PORT 1883
 #define MQTT_USERNAME "USERNAME"
 #define MQTT_PASSWD "PASSWORD"
+#define MQTT_TOPIC_BTY_LV "5/battery/1/level"
+#define MQTT_TOPIC_BTY_LOC "5/battery/1/location"
+#define MQTT_TOPIC_BTY_UID "5/battery/1/uid"
 const char* mqtt_sub_topics[] = {
-  "5/battery/1/level",
-  "5/battery/1/location",
-  "5/battery/1/uid"
+  MQTT_TOPIC_BTY_LV,
+  MQTT_TOPIC_BTY_LOC,
+  MQTT_TOPIC_BTY_UID
 };
 WiFiClient mqttClient;
 PubSubClient mqtt(mqttClient);
@@ -157,10 +160,18 @@ void loop() {
       Serial.println("Detected the battery!");
 
       // Start charging
-      lcd_printBatteryLv();
       if(BatteryLv < 100)
         BatteryLv += 10;
-      // TODO: publish current battery level
+
+      if(BatteryLv > 100)
+        BatteryLv = 100;  // In case MQTT set it to a strange value
+        
+        // Publish battery level
+#if !DEBUG_OFFLINE
+        mqtt.publish(MQTT_TOPIC_BTY_LV, (byte*)&BatteryLv, 1, true);
+#endif
+
+      lcd_printBatteryLv();
     }
   }
   else {
@@ -179,9 +190,9 @@ void setupNFC() {
   // Try to get firmware version of the reader
   // Not guarantee to success in initial run!
   uint32_t versiondata = nfc.getFirmwareVersion();
-  Serial.print("NFC chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
-  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
-  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+//  Serial.print("NFC chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
+//  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
+//  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
 
   // configure board to read RFID tags
   nfc.SAMConfig();
@@ -266,15 +277,22 @@ bool setupMQTT()
 
 void mqttCallback(char* topic, byte* message, unsigned int length)
 {
-  Serial.printf("[MQTT][%s]: ", topic);
+  Serial.printf("Got %d byte(s) from %s\n", length, topic);
 
-  // Extract message
-  char* msg = (char*)malloc(length + 1);
-  memcpy(msg, message, length);
-  msg[length] = '\0';
-
-  Serial.println(msg);
-  free(msg);
+  // Topic handling
+  if(strcmp(topic, MQTT_TOPIC_BTY_UID) == 0 && length == 4) {
+    Serial.printf("Set battery's UID to: %x:%x:%x:%x", message[0], message[1], message[2], message[3]);
+    for(int i=0; i<4; i++) {
+      BATTERY_UID[i] = (uint8_t)message[i];
+    }
+  }
+  else if (strcmp(topic, MQTT_TOPIC_BTY_LV) == 0 && length == 1) {
+    Serial.printf("Set battery level to %d", message[0]);
+    BatteryLv = message[0];
+  }
+  else {
+    Serial.println("No handler for this message!");
+  }
 }
 
 void lcd_printDefMsg()
