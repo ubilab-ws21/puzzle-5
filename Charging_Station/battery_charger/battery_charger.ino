@@ -8,7 +8,7 @@
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
 
-#define DEBUG 0
+#define DEBUG_LCD 1
 #define DEBUG_OFFLINE 0
 
 // Puzzle setup
@@ -153,36 +153,40 @@ void setupNFC() {
 bool setupWiFi(unsigned int timeout) {
   unsigned int counter = timeout * 2;
   WiFi.begin(WLAN_SSID, WLAN_PASS);
-  Serial.print("Connecting to SSID: ");
-  Serial.print(WLAN_SSID);
+  Serial.printf("Connecting to SSID: %s", WLAN_SSID);
+#if DEBUG_LCD
   lcd.clear();
-  lcd.home();
   lcd.print("Connecting SSID:");
   lcd.setCursor(0, 1);
   lcd.print(WLAN_SSID);
   lcd.setCursor(0,2);
+#endif
   while(WiFi.status() != WL_CONNECTED && --counter) {
     Serial.print(".");
+#if DEBUG_LCD
     lcd.print(".");
+#endif
     delay(500);
   }
 
+#if DEBUG_LCD
   lcd.clear();
+#endif
 
   if(counter) {
-    Serial.println("\nWiFi connected.\nIP address: ");
-    Serial.println(WiFi.localIP());
+    Serial.printf("\nWiFi connected.\nIP address: \n%s\n", WiFi.localIP().toString());
     return true;
   }
 
   Serial.println("Wifi not connecting...");
+  lcd.clear();
+  lcd.println("WiFi failed");
   return false;
 }
 
 void lcd_printDefMsg()
 {
   lcd.clear();
-  lcd.home();
   lcd.print("Place battery on");
   lcd.setCursor(0, 1);
   lcd.print("platform to charge!");
@@ -192,7 +196,6 @@ void lcd_printBatteryLv()
 {
   int i = 0;
   lcd.clear();
-  lcd.home();
   lcd.print("Battery Level:");
   lcd.setCursor(0, 1);
   if (BatteryLv == 0) {
@@ -212,9 +215,7 @@ void lcd_printBatteryLv()
   else
     lcd.write(byte(LCD_BLOCK));
 
-  lcd.print(" ");
-  lcd.print(BatteryLv);
-  lcd.print("%");
+  lcd.printf(" %d%%", BatteryLv);
 
   lcd.setCursor(0, 2);
   if(BatteryLv >= 100)
