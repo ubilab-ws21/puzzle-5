@@ -48,7 +48,10 @@ Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 // Note: GPIO12 on ESP32 NodeMCU may not work
 // The initializer of LiquidCrystal cotain begin(1, 16)
 // if it is called before setup(), ESP32 NodeMCU may crash
-const int LCD_rs = 14, LCD_rw = 13, LCD_en = 27, LCD_d4 = 26, LCD_d5 = 25, LCD_d6 = 33, LCD_d7 = 32;
+
+// Set pin to -1 if not connected
+const int LCD_rs = 14, LCD_rw = 13, LCD_en = 27, LCD_d4 = 26, LCD_d5 = 25, LCD_d6 = 33, LCD_d7 = 32, , LCD_bl = -1;
+const int LCD_cols = 20, LCD_rows = 4;
 LiquidCrystal lcd(LCD_rs, LCD_rw, LCD_en, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
 byte LCD_CHAR_BLOCK[8] = {
   B11111,
@@ -101,15 +104,11 @@ enum {
 int BatteryLv = 0;
 
 void setup() {
-  // LCD setup
-  lcd.begin(20, 4);
-  lcd.createChar(LCD_BLOCK, LCD_CHAR_BLOCK);
-  lcd.createChar(LCD_LEFT_EDGE, LCD_CHAR_LEFT_EDGE);
-  lcd.createChar(LCD_MID_EDGE, LCD_CHAR_MID_EDGE);
-  lcd.createChar(LCD_RIGHT_EDGE, LCD_CHAR_RIGHT_EDGE);
-  
   Serial.begin(115200);
   Serial.println("\nSerial: up");
+
+  setupLCD();
+  
 #if !DEBUG_OFFLINE
   if(!setupWiFi(WLAN_TIMEOUT) || !setupMQTT()) {
     delay(2000);
@@ -148,7 +147,7 @@ void loop() {
 #endif
 
   Serial.println("\n\nPlace a card to read!");
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 2000);  // timeout=0 -> blocking
+  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 3000);  // timeout=0 -> blocking
   if(success) {
     // Display some basic information about the card
     Serial.println("Found an ISO14443A card");
@@ -173,6 +172,7 @@ void loop() {
 
       lcd_printBatteryLv();
     }
+    delay(500); // slow down loop interval
   }
   else {
     // Terry: Found some cards will make the read function fail forever. Restart is needed.
@@ -180,8 +180,6 @@ void loop() {
     setupNFC();
     lcd_printDefMsg();
   }
-
-  delay(500);
 }
 
 void setupNFC() {
@@ -189,7 +187,7 @@ void setupNFC() {
 
   // Try to get firmware version of the reader
   // Not guarantee to success in initial run!
-  uint32_t versiondata = nfc.getFirmwareVersion();
+//  uint32_t versiondata = nfc.getFirmwareVersion();
 //  Serial.print("NFC chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
 //  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
 //  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
@@ -293,6 +291,25 @@ void mqttCallback(char* topic, byte* message, unsigned int length)
   else {
     Serial.println("No handler for this message!");
   }
+}
+
+void setupLCD()
+{
+  lcd.begin(LCD_cols, LCD_rows);
+  if(LCD_bl != -1)
+  {
+    pinMode(LCD_bl, OUTPUT);
+    digitalWrite(LCD_bl, HIGH);  // backlight defualt on
+  }
+  lcd.createChar(LCD_BLOCK, LCD_CHAR_BLOCK);
+  lcd.createChar(LCD_LEFT_EDGE, LCD_CHAR_LEFT_EDGE);
+  lcd.createChar(LCD_MID_EDGE, LCD_CHAR_MID_EDGE);
+  lcd.createChar(LCD_RIGHT_EDGE, LCD_CHAR_RIGHT_EDGE);
+}
+
+void lcd_backLight(bool on)
+{
+  digitalWrite(LCD_bl, on ? HIGH:LOW);
 }
 
 void lcd_printDefMsg()
