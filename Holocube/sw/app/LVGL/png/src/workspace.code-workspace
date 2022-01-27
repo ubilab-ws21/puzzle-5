@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"example_gif.h": "c",
+			"task.h": "c",
+			"esp_log.h": "c"
+		}
+	}
+}

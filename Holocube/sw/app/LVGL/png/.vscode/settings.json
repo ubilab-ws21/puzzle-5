@@ -1,0 +1,13 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "cmake.sourceDirectory": "${workspaceFolder}/.pio/libdeps/pico32/ArduinoJson",
+    "idf.adapterTargetName": "esp32",
+    "files.associations": {
+        "example_gif.h": "c",
+        "p1fnr9p2sj1nqc1id51nbv1jug1v374_1.h": "c",
+        "string": "cpp",
+        "functional": "cpp",
+        "limits": "cpp",
+        "example.h": "c"
+    }
+}
