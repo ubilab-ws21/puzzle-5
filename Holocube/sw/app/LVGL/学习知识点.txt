@@ -1,0 +1,76 @@
+lvgl: 分成三个部分， lib， driver， example（lvgl（图形库）, lv_examples, lv_drivers:最受维护和关注的核心存储库）
+
+lv_port: 移植到别的开发板上
+lv_binding: 绑定别的其它语言
+lv_移植到别的平台
+
+
+lvgl（图形库）： 核心存储库至少具有以下分支：
+master， 最新版本
+dev, 开发人员在此处合并，然后最终合并到master
+release/vx, 主要版本地下的次要版本
+
+
+lvgl：的系统框架： drivers(available, but customization)+ littlevGL(provided and download to use) + application(we write it)
+lvgl: 图形库，应用程序通过调用LVGL库来创建GUI,其包含了HAL(hardware abstruct layer)接口，用于注册显示和输入设备驱动程序。
+驱动程序功能： 1， 特定的驱动程序，2， 可驱动显示器到GPU， 3， 读取触摸板或者按钮的输入
+
+硬件设置： 一个带有内置LCD/TFT驱动器的外围设备/  没有内置LCD/TFT 驱动器的外围设备。
+此两硬件设置都需要一个帧缓冲区来存储屏幕的当前图像。
+     1. 集成了TFT/LCD 驱动器的MCU如果集成了TFT/lcd 的驱动器外围设备， 则可以直接通过RGB接口连接显示器。这种情况下，帧缓冲区可以位于
+内部RAM， 也可以存储于外部RAM
+     2. 如果没有集成驱动接口程序， 则必须使用外部显示控制器SSD1963, SSD1306，ILI9341等/。 此种情况下，MCU可以通过并行端口， SPI或者I2C
+来与现实控制器进行通信。 帧缓冲区通常位于显示控制器中， 从而MCU节约了大量的RAM
+
+三， 建立一个lvgl项目
+首先或者官方的两个库： lvgl(图形库), lv_drivers（驱动库）， lv_examples:不能用到实际的项目中，可以测试
+复制或者克隆之后然后进行配置
+
+lvgl的配置文件： lv_conf_template.h的配置头文件。 通过它可以配置库的基本行为，裁剪掉不需要的模块和功能，在编译区域调整内存缓冲区的大小等。
+1， 从lvgl/lv_conf_template.h复制到lvgl同级目录下，并将其重新命名为lv_drv_conf.h。 同时打开文件将#if 0 -》1 进行使能
+2. 从lv_drivers/lv_drv_conf_templates.h复制到lv_drivers同级目录下，并将其重新命名为lv_conf.h。 同样将其使能。
+3.同样打开lv_examples中的相同文件，并对其进行相应的调整和更改，来进行使能。
+
+初始化lvgl，这是建立在三个库已经满足的情况，这个初始化顺序可以参考链接，分成两种，一种是win32， 一种是Linux
+其步骤是：
+1. 调用LV_init 初始化 lvgl库
+2. 初始化驱动程序
+3.在lvgl中注册显示和输入设备驱动程序
+4，每隔x毫秒调用 lv_tick_inc(x) 告知lvgl经过的时间
+5，经过X毫秒定期调用函数，用于处理相关任务
+
+
+五， LVGL 显示接口
+要设置显示， 必须初始化，lv_disp_buf_t, lv_disp_drv_t
+前者保存显示缓冲区信息的结构体， 后者HAL要注册的显示驱动程序，与显示交互并处理与图像相关的结构体， 回调函数
+函数1： lv_disp_buf_t: 
+缓冲区大小分三种情况：
+a.一个缓冲区， 缓冲区可以小于屏幕，这种情况下，较大的区域将被重画成多个部分。如果只有小部分发生变化，则只会刷新更改的部分
+b, 两个非屏幕大小的缓冲区， 具有两个缓冲区的LVGL可以将其中一个作为显示缓冲区，而另一个缓冲区的内容发送到后台显示。 用DMA
+或者其他硬件将数据传送到显示器。 让CPU同时绘图。这样， 渲染和刷新是并行处理。如果缓冲区小于要刷新的区域，LVGL 将按照块绘制显示内容。
+c, 两个屏幕大小的缓冲区。LVGL提供整个屏幕的内容，而不只是这一块。这样，驱动程序可以简单的将帧缓冲区的地址更改为从LVGL接受的缓冲区。因此，
+当MCU 具有LCD 接口， 且缓冲区只是RAM中的一个位置时，这个效果很好
+
+LVGL显示驱动器
+一旦缓冲区初始化准备就绪，就要初始化显示驱动程序。在最简单的情况下， 仅仅需要设置lv_disp_drv_t 的以下两个字段：
+buffer 指向一初始化的lv_disp_buf_t
+flush_cb 回调函数， 用于将缓冲区的内容复制到显示的特定区。 刷新准备就绪后，需要调用lv_disp_flush_ready();LVGL 可能会以多个快呈现屏幕，因此多次调用
+因此要多次调用flush_cb。 使用 lv_disp_flush_is_last()可以查看哪块是最后渲染的。
+显示驱动有以下几个字段：
+hor_res, ver_res , color_chroma_key, user_data, anti_aliasing, rotated, screen_transp: 全部来自于lv_conf.h中
+GPU 相应的回调函数： gpu_fill_cb: 用颜色填充， gpu_blend_cb用不透明度混合两个内存缓冲区， gpu_wait_cb:如果GPU 仍在运行LVGL的情况下返回了任何GPU函数，那么
+就会等待其渲染就绪之后再调用此函数： 上述的函数就是建立在绘制到RAM上，而不是绘制在显示屏上。
+
+其他一些可选的回调，使单色，灰度或其他非标准RGB显示一起使用时更轻松，优化：
+1， rounder_cb: 四舍五入要重绘的区域的坐标。 
+2， set_px_cb:编写显示缓冲区的自定义函数
+3， monitor_cb: 回调函数，告诉在多少时间内刷新了多少像素
+4， clean_dcache_cb： 清除与显示相关所有缓存的回调
+
+
+设置lv_disp_drv_t变量的字段，需要使用lv_disp_drv_init(& disp_drv)进行初始化。 其次，要为LVGL注册显示设备， 需要调用lv_disp_register(&disp_drv)
+
+
+
+
+
