@@ -24,8 +24,8 @@ uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 #define MQTT_CLIENT_ID "Puzzle-5-charger"
 #define MQTT_BROKER_IP "BROKER_IP"
 #define MQTT_PORT 1883
-#define MQTT_USERNAME "USERNAME"
-#define MQTT_PASSWD "PASSWORD"
+#define MQTT_USERNAME "USERNAME"   // comment it if no authentication
+#define MQTT_PASSWD "PASSWORD"   // comment it if no authentication
 #define MQTT_TOPIC_BTY_LV "5/battery/1/level"
 #define MQTT_TOPIC_BTY_LOC "5/battery/1/location"
 #define MQTT_TOPIC_BTY_UID "5/battery/1/uid"
@@ -103,14 +103,18 @@ enum {
 // Game status variables
 int BatteryLv = 0;
 
+/******************
+ * Initalization
+ *****************/
+
 void setup() {
   Serial.begin(115200);
   Serial.println("\nSerial: up");
 
   setupLCD();
-  
+
 #if !DEBUG_OFFLINE
-  if(!setupWiFi(WLAN_TIMEOUT) || !setupMQTT()) {
+  if (!setupWiFi(WLAN_TIMEOUT) || !setupMQTT()) {
     delay(2000);
     ESP.restart();
   }
@@ -120,6 +124,10 @@ void setup() {
   lcd_printDefMsg();
 }
 
+/******************
+ * Main Loop
+ *****************/
+
 void loop() {
   // Handle NFC reading
   uint8_t success;
@@ -127,7 +135,7 @@ void loop() {
   uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
 
 #if !DEBUG_OFFLINE
-  if(WiFi.status() != WL_CONNECTED) { // Restart the board if WiFi is lost
+  if (WiFi.status() != WL_CONNECTED) { // Restart the board if WiFi is lost
 #if DEBUG_LCD
     lcd.clear();
     lcd.print("WiFi disconnect");
@@ -136,7 +144,7 @@ void loop() {
     ESP.restart();
   }
 
-  if(!mqtt.connected()) {  // Reconnect MQTT if connection is lost
+  if (!mqtt.connected()) {  // Reconnect MQTT if connection is lost
 #if DEBUG_LCD
     lcd.clear();
     lcd.print("Reconnect MQTT");
@@ -148,24 +156,24 @@ void loop() {
 
   Serial.println("\n\nPlace a card to read!");
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 3000);  // timeout=0 -> blocking
-  if(success) {
+  if (success) {
     // Display some basic information about the card
     Serial.println("Found an ISO14443A card");
     Serial.print("  UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
     Serial.print("  UID Value: ");
     nfc.PrintHex(uid, uidLength);
 
-    if(memcmp(BATTERY_UID, uid, 4) == 0) {
+    if (memcmp(BATTERY_UID, uid, 4) == 0) {
       Serial.println("Detected the battery!");
 
       // Start charging
-      if(BatteryLv < 100)
+      if (BatteryLv < 100)
         BatteryLv += 10;
 
-      if(BatteryLv > 100)
+      if (BatteryLv > 100)
         BatteryLv = 100;  // In case MQTT set it to a strange value
         
-        // Publish battery level
+       // Publish battery level if it is changed
 #if !DEBUG_OFFLINE
         mqtt.publish(MQTT_TOPIC_BTY_LV, (byte*)&BatteryLv, 1, true);
 #endif
@@ -182,6 +190,10 @@ void loop() {
   }
 }
 
+/***************************
+ * Functions - NFC related
+ **************************/
+
 void setupNFC() {
   nfc.begin();
 
@@ -195,6 +207,10 @@ void setupNFC() {
   // configure board to read RFID tags
   nfc.SAMConfig();
 }
+
+/***************************
+ * Functions - WiFi related
+ **************************/
 
 bool setupWiFi(unsigned int timeout) {
   unsigned int counter = timeout * 2;
@@ -219,8 +235,8 @@ bool setupWiFi(unsigned int timeout) {
   lcd.clear();
 #endif
 
-  if(counter) {
-    Serial.printf("\nWiFi connected.\nIP address: \n%s\n", WiFi.localIP().toString());
+  if (counter) {
+    Serial.printf("\nWiFi connected.\nIP address: \n%s\n", WiFi.localIP().toString().c_str());
     return true;
   }
 
@@ -229,6 +245,10 @@ bool setupWiFi(unsigned int timeout) {
   lcd.println("WiFi failed");
   return false;
 }
+
+/***************************
+ * Functions - MQTT related
+ **************************/
 
 bool setupMQTT()
 {
@@ -252,13 +272,13 @@ bool setupMQTT()
 #if DEBUG_LCD
   lcd.clear();
 #endif
-  if(res) {
+  if (res) {
     Serial.println("Connected to MQTT server");
     // Subscribe to topics
     mqtt.setCallback(mqttCallback);
     for(int i=0; i<sizeof (mqtt_sub_topics) / sizeof (const char *); i++) {
       Serial.printf("Subscribing to topic: %s\n", mqtt_sub_topics[i]);
-      if(!mqtt.subscribe(mqtt_sub_topics[i])) {
+      if (!mqtt.subscribe(mqtt_sub_topics[i])) {
         Serial.printf("Failed to subscribe to the topic!");
         return false;
       }
@@ -293,10 +313,14 @@ void mqttCallback(char* topic, byte* message, unsigned int length)
   }
 }
 
+/***************************
+ * Functions - LCD related
+ **************************/
+
 void setupLCD()
 {
   lcd.begin(LCD_cols, LCD_rows);
-  if(LCD_bl != -1)
+  if (LCD_bl != -1)
   {
     pinMode(LCD_bl, OUTPUT);
     digitalWrite(LCD_bl, HIGH);  // backlight defualt on
@@ -338,7 +362,7 @@ void lcd_printBatteryLv()
   for(; i<9 ; i++) {
     lcd.write(byte(LCD_MID_EDGE));
   }
-  if(BatteryLv < 100)
+  if (BatteryLv < 100)
     lcd.write(byte(LCD_RIGHT_EDGE));
   else
     lcd.write(byte(LCD_BLOCK));
@@ -346,7 +370,7 @@ void lcd_printBatteryLv()
   lcd.printf(" %d%%", BatteryLv);
 
   lcd.setCursor(0, 2);
-  if(BatteryLv >= 100)
+  if (BatteryLv >= 100)
     lcd.print("Fully charged!");
   else
     lcd.print("Keep charging!");
