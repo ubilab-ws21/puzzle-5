@@ -4,7 +4,7 @@ done：
 
 1 Add photos and be able to switch and enter the game state (in animated form) or in motion picture form by command
 2 After the game is over and the goal is completed, a new picture is displayed, indicating a hint for the next puzzle
-3 when games wins, it will send json commands to next puzzle and start next puzzle game.
+3 when game wins, it will send json commands to next puzzle and start next puzzle game.
 
 
 
