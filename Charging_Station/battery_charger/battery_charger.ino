@@ -8,6 +8,7 @@
 #include <SPI.h>
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
+#include <ArduinoJson.h>
 
 #define DEBUG_LCD 1
 #define DEBUG_OFFLINE 0
@@ -100,8 +101,18 @@ enum {
   LCD_RIGHT_EDGE
 };
 
+// Game data definitions
+enum BATTERY_LOC {
+  LOC_CHARGER,
+  LOC_ELEC_BOX,
+  LOC_UNKNOWN = 255
+};
+
 // Game status variables
 int BatteryLv = 0;
+int BatteryLoc = LOC_UNKNOWN;
+bool MQTT_received = false;
+
 
 /******************
  * Initalization
@@ -152,6 +163,11 @@ void loop() {
     setupMQTT();
   }
   mqtt.loop();
+  if (MQTT_received) {
+    // Skip to next cycle to handle all incoming MQTT messages first
+    MQTT_received = false;
+    return;
+  }
 #endif
 
   Serial.println("\n\nPlace a card to read!");
@@ -164,6 +180,7 @@ void loop() {
     nfc.PrintHex(uid, uidLength);
 
     if (memcmp(BATTERY_UID, uid, 4) == 0) {
+      int prevBatLv = BatteryLv;
       Serial.println("Detected the battery!");
 
       // Start charging
@@ -175,18 +192,40 @@ void loop() {
         
        // Publish battery level if it is changed
 #if !DEBUG_OFFLINE
-        mqtt.publish(MQTT_TOPIC_BTY_LV, (byte*)&BatteryLv, 1, true);
+      if (prevBatLv != BatteryLv)
+        mqttPubBatLv(BatteryLv);
 #endif
 
       lcd_printBatteryLv();
+
+      // Update location
+      if (BatteryLoc != LOC_CHARGER) {
+        Serial.println("Publish battery's location");
+        if (mqttPubBatLoc(LOC_CHARGER)) {
+          BatteryLoc = LOC_CHARGER;
+        } else {
+          Serial.println("Failed to publish location LOC_CHARGER");
+        }
+      }
+      
     }
-    delay(500); // slow down loop interval
+    delay(1000); // slow down loop interval
   }
   else {
     // Terry: Found some cards will make the read function fail forever. Restart is needed.
     Serial.println("Failed to read a card! Try to reset.");
     setupNFC();
     lcd_printDefMsg();
+
+    // Set battery's location to LOC_UNKNOWN if it was here
+    if (BatteryLoc == LOC_CHARGER) {
+      // publish location
+      if (mqttPubBatLoc(LOC_UNKNOWN)) {
+        BatteryLoc = LOC_UNKNOWN;
+      } else {
+        Serial.println("Failed to publish location LOC_UNKNOWN");
+      }
+    }
   }
 }
 
@@ -293,20 +332,51 @@ bool setupMQTT()
   return res;
 }
 
+bool mqttPubBatLv(int batLv)
+{
+  StaticJsonDocument<200> doc;
+  doc["method"] = "message";
+  doc["data"] = batLv;
+  char json[200];
+  serializeJson(doc, json);
+  return mqtt.publish(MQTT_TOPIC_BTY_LV, json, true);
+}
+
+bool mqttPubBatLoc(int loc)
+{
+  StaticJsonDocument<200> doc;
+  doc["method"] = "message";
+  doc["data"] = loc;
+  char json[200];
+  serializeJson(doc, json);
+  return mqtt.publish(MQTT_TOPIC_BTY_LOC, json, true);
+}
+
 void mqttCallback(char* topic, byte* message, unsigned int length)
 {
+  StaticJsonDocument<200> mqtt_decoder;
   Serial.printf("Got %d byte(s) from %s\n", length, topic);
+  MQTT_received = true;
+
+  if (deserializeJson(mqtt_decoder, message)) {
+    Serial.println("Failed to deserialize JSON");
+    return;
+  }
 
   // Topic handling
-  if(strcmp(topic, MQTT_TOPIC_BTY_UID) == 0 && length == 4) {
-    Serial.printf("Set battery's UID to: %x:%x:%x:%x", message[0], message[1], message[2], message[3]);
-    for(int i=0; i<4; i++) {
-      BATTERY_UID[i] = (uint8_t)message[i];
-    }
+  if (strcmp(topic, MQTT_TOPIC_BTY_UID) == 0) {
+    // Assume string in format "aa:bb:cc:dd"
+    sscanf(mqtt_decoder["data"], "%x:%x:%x:%x", &BATTERY_UID[0], &BATTERY_UID[1], &BATTERY_UID[2], &BATTERY_UID[3]);
+    Serial.printf("Received battery's UID: %x:%x:%x:%x", BATTERY_UID[0], BATTERY_UID[1], BATTERY_UID[2], BATTERY_UID[3]);
   }
-  else if (strcmp(topic, MQTT_TOPIC_BTY_LV) == 0 && length == 1) {
-    Serial.printf("Set battery level to %d", message[0]);
-    BatteryLv = message[0];
+  else if (strcmp(topic, MQTT_TOPIC_BTY_LV) == 0) {
+    int batLv = mqtt_decoder["data"]; // TODO: Error handling in case data doesn't exist
+    Serial.printf("Received battery level: %d", batLv);
+    BatteryLv = batLv;
+  }
+  else if (strcmp(topic, MQTT_TOPIC_BTY_LOC) == 0) {
+    Serial.printf("Receive battery location: %d", BatteryLoc);
+    BatteryLoc = mqtt_decoder["data"];
   }
   else {
     Serial.println("No handler for this message!");
