@@ -8,6 +8,7 @@
 #include <SPI.h>
 #include <Adafruit_PN532.h>
 #include <LiquidCrystal.h>
+#include <ArduinoJson.h>
 
 #define DEBUG_LCD 1
 #define DEBUG_OFFLINE 0
@@ -24,8 +25,8 @@ uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 #define MQTT_CLIENT_ID "Puzzle-5-elec-box"
 #define MQTT_BROKER_IP "BROKER_IP" 
 #define MQTT_PORT 1883
-#define MQTT_USERNAME "USERNAME" 
-#define MQTT_PASSWD "PASSWORD" 
+#define MQTT_USERNAME "USERNAME"   // comment it if no authentication
+#define MQTT_PASSWD "PASSWORD"    // comment it if no authentication
 #define MQTT_TOPIC_BTY_LV "5/battery/1/level"
 #define MQTT_TOPIC_BTY_LOC "5/battery/1/location"
 #define MQTT_TOPIC_BTY_UID "5/battery/1/uid"
@@ -100,25 +101,44 @@ enum {
   LCD_RIGHT_EDGE
 };
 
+// Game data definitions
+enum BATTERY_LOC {
+  LOC_CHARGER,
+  LOC_ELEC_BOX,
+  LOC_UNKNOWN = 255
+};
+
 // Game status variables
 int BatteryLv = 0;
+int BatteryLoc = LOC_UNKNOWN;
+int NFC_failCnt = 0;
+bool MQTT_received = false;
+
+
+/******************
+ * Initalization
+ *****************/
 
 void setup() {
+  setupNFC();   // Somehow it has to be initialized very early to make it able to read in long run
   Serial.begin(115200);
   Serial.println("\nSerial: up");
 
   setupLCD();
-  
+
 #if !DEBUG_OFFLINE
-  if(!setupWiFi(WLAN_TIMEOUT) || !setupMQTT()) {
+  if (!setupWiFi(WLAN_TIMEOUT) || !setupMQTT()) {
     delay(2000);
     ESP.restart();
   }
 #endif
-  setupNFC();
 
   lcd_printDefMsg();
 }
+
+/******************
+ * Main Loop
+ *****************/
 
 void loop() {
   // Handle NFC reading
@@ -127,7 +147,7 @@ void loop() {
   uint8_t uidLength;                        // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
 
 #if !DEBUG_OFFLINE
-  if(WiFi.status() != WL_CONNECTED) { // Restart the board if WiFi is lost
+  if (WiFi.status() != WL_CONNECTED) { // Restart the board if WiFi is lost
 #if DEBUG_LCD
     lcd.clear();
     lcd.print("WiFi disconnect");
@@ -136,7 +156,7 @@ void loop() {
     ESP.restart();
   }
 
-  if(!mqtt.connected()) {  // Reconnect MQTT if connection is lost
+  if (!mqtt.connected()) {  // Reconnect MQTT if connection is lost
 #if DEBUG_LCD
     lcd.clear();
     lcd.print("Reconnect MQTT");
@@ -144,30 +164,66 @@ void loop() {
     setupMQTT();
   }
   mqtt.loop();
+  if (MQTT_received) {
+    // Skip to next cycle to handle all incoming MQTT messages first
+    MQTT_received = false;
+    return;
+  }
 #endif
 
   Serial.println("\n\nPlace a card to read!");
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 3000);  // timeout=0 -> blocking
-  if(success) {
+  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);  // timeout=0 -> blocking
+  if (success) {
     // Display some basic information about the card
     Serial.println("Found an ISO14443A card");
     Serial.print("  UID Length: ");Serial.print(uidLength, DEC);Serial.println(" bytes");
     Serial.print("  UID Value: ");
     nfc.PrintHex(uid, uidLength);
 
-    if(memcmp(BATTERY_UID, uid, 4) == 0) {
+    if (memcmp(BATTERY_UID, uid, 4) == 0) {
+      int prevBatLv = BatteryLv;
       Serial.println("Detected the battery!");
       lcd_printBatteryLv();
+
+      // Update location
+      if (BatteryLoc != LOC_ELEC_BOX) {
+        Serial.println("Publish battery's location");
+        if (mqttPubBatLoc(LOC_ELEC_BOX)) {
+          BatteryLoc = LOC_ELEC_BOX;
+        } else {
+          Serial.println("Failed to publish location LOC_CHARGER");
+        }
+      }
+      
     }
-    delay(500); // slow down loop interval
+    delay(1000); // slow down loop interval
   }
   else {
     // Terry: Found some cards will make the read function fail forever. Restart is needed.
-    Serial.println("Failed to read a card! Try to reset.");
-    setupNFC();
+    Serial.println("No card is detected");
+    NFC_failCnt++;
+    if (NFC_failCnt >= 6) {
+      Serial.println("Failed to read a card! Try to reset.");
+      NFC_failCnt = 0;
+      setupNFC();
+    }
     lcd_printDefMsg();
+
+    // Set battery's location to LOC_UNKNOWN if it was here
+    if (BatteryLoc == LOC_ELEC_BOX) {
+      // publish location
+      if (mqttPubBatLoc(LOC_UNKNOWN)) {
+        BatteryLoc = LOC_UNKNOWN;
+      } else {
+        Serial.println("Failed to publish location LOC_UNKNOWN");
+      }
+    }
   }
 }
+
+/***************************
+ * Functions - NFC related
+ **************************/
 
 void setupNFC() {
   nfc.begin();
@@ -179,9 +235,14 @@ void setupNFC() {
 //  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
 //  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
 
+  delay(400); // May need some extra time to get the reader ready
   // configure board to read RFID tags
   nfc.SAMConfig();
 }
+
+/***************************
+ * Functions - WiFi related
+ **************************/
 
 bool setupWiFi(unsigned int timeout) {
   unsigned int counter = timeout * 2;
@@ -205,8 +266,8 @@ bool setupWiFi(unsigned int timeout) {
   lcd.clear();
 #endif
 
-  if(counter) {
-    Serial.printf("\nWiFi connected.\nIP address: \n%s\n", WiFi.localIP().toString());
+  if (counter) {
+    Serial.printf("\nWiFi connected.\nIP address: \n%s\n", WiFi.localIP().toString().c_str());
     return true;
   }
 
@@ -215,6 +276,10 @@ bool setupWiFi(unsigned int timeout) {
   lcd.println("WiFi failed");
   return false;
 }
+
+/***************************
+ * Functions - MQTT related
+ **************************/
 
 bool setupMQTT()
 {
@@ -238,13 +303,13 @@ bool setupMQTT()
 #if DEBUG_LCD
   lcd.clear();
 #endif
-  if(res) {
+  if (res) {
     Serial.println("Connected to MQTT server");
     // Subscribe to topics
     mqtt.setCallback(mqttCallback);
     for(int i=0; i<sizeof (mqtt_sub_topics) / sizeof (const char *); i++) {
       Serial.printf("Subscribing to topic: %s\n", mqtt_sub_topics[i]);
-      if(!mqtt.subscribe(mqtt_sub_topics[i])) {
+      if (!mqtt.subscribe(mqtt_sub_topics[i])) {
         Serial.printf("Failed to subscribe to the topic!");
         return false;
       }
@@ -259,30 +324,65 @@ bool setupMQTT()
   return res;
 }
 
+bool mqttPubBatLv(int batLv)
+{
+  StaticJsonDocument<200> doc;
+  doc["method"] = "message";
+  doc["data"] = batLv;
+  char json[200];
+  serializeJson(doc, json);
+  return mqtt.publish(MQTT_TOPIC_BTY_LV, json, true);
+}
+
+bool mqttPubBatLoc(int loc)
+{
+  StaticJsonDocument<200> doc;
+  doc["method"] = "message";
+  doc["data"] = loc;
+  char json[200];
+  serializeJson(doc, json);
+  return mqtt.publish(MQTT_TOPIC_BTY_LOC, json, true);
+}
+
 void mqttCallback(char* topic, byte* message, unsigned int length)
 {
+  StaticJsonDocument<200> mqtt_decoder;
   Serial.printf("Got %d byte(s) from %s\n", length, topic);
+  MQTT_received = true;
+
+  if (deserializeJson(mqtt_decoder, message)) {
+    Serial.println("Failed to deserialize JSON");
+    return;
+  }
 
   // Topic handling
-  if(strcmp(topic, MQTT_TOPIC_BTY_UID) == 0 && length == 4) {
-    Serial.printf("Set battery's UID to: %x:%x:%x:%x", message[0], message[1], message[2], message[3]);
-    for(int i=0; i<4; i++) {
-      BATTERY_UID[i] = (uint8_t)message[i];
-    }
+  if (strcmp(topic, MQTT_TOPIC_BTY_UID) == 0) {
+    // Assume string in format "aa:bb:cc:dd"
+    sscanf(mqtt_decoder["data"], "%x:%x:%x:%x", &BATTERY_UID[0], &BATTERY_UID[1], &BATTERY_UID[2], &BATTERY_UID[3]);
+    Serial.printf("Received battery's UID: %x:%x:%x:%x", BATTERY_UID[0], BATTERY_UID[1], BATTERY_UID[2], BATTERY_UID[3]);
   }
-  else if (strcmp(topic, MQTT_TOPIC_BTY_LV) == 0 && length == 1) {
-    Serial.printf("Set battery level to %d", message[0]);
-    BatteryLv = message[0];
+  else if (strcmp(topic, MQTT_TOPIC_BTY_LV) == 0) {
+    int batLv = mqtt_decoder["data"]; // TODO: Error handling in case data doesn't exist
+    Serial.printf("Received battery level: %d", batLv);
+    BatteryLv = batLv;
+  }
+  else if (strcmp(topic, MQTT_TOPIC_BTY_LOC) == 0) {
+    Serial.printf("Receive battery location: %d", BatteryLoc);
+    BatteryLoc = mqtt_decoder["data"];
   }
   else {
     Serial.println("No handler for this message!");
   }
 }
 
+/***************************
+ * Functions - LCD related
+ **************************/
+
 void setupLCD()
 {
   lcd.begin(LCD_cols, LCD_rows);
-  if(LCD_bl != -1)
+  if (LCD_bl != -1)
   {
     pinMode(LCD_bl, OUTPUT);
     digitalWrite(LCD_bl, HIGH);  // backlight defualt on
@@ -301,7 +401,7 @@ void lcd_backLight(bool on)
 void lcd_printDefMsg()
 {
   lcd.clear();
-  if(BatteryLv == 100) {
+  if (BatteryLv == 100) {
     lcd_backLight(true);
     // Current logic: removing fully charged battery won't drop the power of control room
     lcd.print("Keep the battery");
@@ -333,7 +433,7 @@ void lcd_printBatteryLv()
   for(; i<9 ; i++) {
     lcd.write(byte(LCD_MID_EDGE));
   }
-  if(BatteryLv < 100)
+  if (BatteryLv < 100)
     lcd.write(byte(LCD_RIGHT_EDGE));
   else
     lcd.write(byte(LCD_BLOCK));
@@ -341,7 +441,7 @@ void lcd_printBatteryLv()
   lcd.printf(" %d%%", BatteryLv);
 
   lcd.home();
-  if(BatteryLv == 0) {
+  if (BatteryLv == 0) {
     // Blink power critial message
     lcd.print("Power critial!");
     for(int i=0; i<2; i++) {
