@@ -50,7 +50,7 @@ Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 // if it is called before setup(), ESP32 NodeMCU may crash
 
 // Set pin to -1 if not connected
-const int LCD_rs = 14, LCD_rw = 13, LCD_en = 27, LCD_d4 = 26, LCD_d5 = 25, LCD_d6 = 33, LCD_d7 = 32, , LCD_bl = -1;
+const int LCD_rs = 14, LCD_rw = 13, LCD_en = 27, LCD_d4 = 26, LCD_d5 = 25, LCD_d6 = 33, LCD_d7 = 32, LCD_bl = -1;
 const int LCD_cols = 20, LCD_rows = 4;
 LiquidCrystal lcd(LCD_rs, LCD_rw, LCD_en, LCD_d4, LCD_d5, LCD_d6, LCD_d7);
 byte LCD_CHAR_BLOCK[8] = {
