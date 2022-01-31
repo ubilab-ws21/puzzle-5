@@ -30,10 +30,12 @@ uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 #define MQTT_TOPIC_BTY_LV "5/battery/1/level"
 #define MQTT_TOPIC_BTY_LOC "5/battery/1/location"
 #define MQTT_TOPIC_BTY_UID "5/battery/1/uid"
+#define MQTT_TOPIC_CTL_PWR "5/control_room/power"
 const char* mqtt_sub_topics[] = {
   MQTT_TOPIC_BTY_LV,
   MQTT_TOPIC_BTY_LOC,
-  MQTT_TOPIC_BTY_UID
+  MQTT_TOPIC_BTY_UID,
+  MQTT_TOPIC_CTL_PWR
 };
 WiFiClient mqttClient;
 PubSubClient mqtt(mqttClient);
@@ -111,8 +113,10 @@ enum BATTERY_LOC {
 // Game status variables
 int BatteryLv = 0;
 int BatteryLoc = LOC_UNKNOWN;
+int CtrlPowerLv = 0;
 int NFC_failCnt = 0;
 bool MQTT_received = false;
+bool CtrlRmPowerResumed = false;
 
 
 /******************
@@ -183,7 +187,22 @@ void loop() {
     if (memcmp(BATTERY_UID, uid, 4) == 0) {
       int prevBatLv = BatteryLv;
       Serial.println("Detected the battery!");
-      lcd_printBatteryLv();
+
+      if (BatteryLv >= 10 && CtrlPowerLv < 100 && mqttPubBatLv(BatteryLv - 10)) {
+        BatteryLv -= 10;
+        CtrlPowerLv += 10;
+        Serial.printf("Battery level: %d; Power level: %d\n", BatteryLv, CtrlPowerLv);
+      }
+
+      if (CtrlPowerLv >= 100 && !CtrlRmPowerResumed) {
+        // Resume power of control room
+        if (mqttPubCtrlRmPwr(true)) {
+          CtrlRmPowerResumed = true;
+          Serial.println("Control room power resumed!");
+        } else {
+          Serial.println("Failed to publish MQTT control room power trigger");
+        }
+      }
 
       // Update location
       if (BatteryLoc != LOC_ELEC_BOX) {
@@ -195,7 +214,9 @@ void loop() {
         }
       }
       
+      lcd_printPowerLv();
     }
+
     delay(1000); // slow down loop interval
   }
   else {
@@ -344,6 +365,16 @@ bool mqttPubBatLoc(int loc)
   return mqtt.publish(MQTT_TOPIC_BTY_LOC, json, true);
 }
 
+bool mqttPubCtrlRmPwr(bool state)
+{
+  StaticJsonDocument<200> doc;
+  doc["method"] = "status";
+  doc["state"] = state ? "solved" : "active";
+  char json[200];
+  serializeJson(doc, json);
+  return mqtt.publish(MQTT_TOPIC_CTL_PWR, json, true);
+}
+
 void mqttCallback(char* topic, byte* message, unsigned int length)
 {
   StaticJsonDocument<200> mqtt_decoder;
@@ -369,6 +400,14 @@ void mqttCallback(char* topic, byte* message, unsigned int length)
   else if (strcmp(topic, MQTT_TOPIC_BTY_LOC) == 0) {
     Serial.printf("Receive battery location: %d", BatteryLoc);
     BatteryLoc = mqtt_decoder["data"];
+  }
+  else if (strcmp(topic, MQTT_TOPIC_CTL_PWR) == 0 && 
+           strcmp(mqtt_decoder["method"], "status") == 0) {
+    if (strcmp(mqtt_decoder["state"], "active") == 0) {
+      // Reset the game
+      CtrlPowerLv = 0;
+      CtrlRmPowerResumed = false;
+    }
   }
   else {
     Serial.println("No handler for this message!");
@@ -401,7 +440,7 @@ void lcd_backLight(bool on)
 void lcd_printDefMsg()
 {
   lcd.clear();
-  if (BatteryLv == 100) {
+  if (CtrlRmPowerResumed && BatteryLoc != LOC_ELEC_BOX) {
     lcd_backLight(true);
     // Current logic: removing fully charged battery won't drop the power of control room
     lcd.print("Keep the battery");
@@ -414,18 +453,18 @@ void lcd_printDefMsg()
   }
 }
 
-void lcd_printBatteryLv()
+void lcd_printPowerLv()
 {
   int i = 0;
   
   lcd.clear();
   lcd_backLight(true);
   lcd.setCursor(0, 1);
-  if (BatteryLv == 0) {
+  if (CtrlPowerLv == 0) {
     lcd.write(byte(LCD_LEFT_EDGE));
   }
   else {
-    for(i=0; i<BatteryLv/10; i++) {
+    for(i=0; i<CtrlPowerLv/10; i++) {
       lcd.write(byte(LCD_BLOCK));
     }
   }
@@ -433,15 +472,15 @@ void lcd_printBatteryLv()
   for(; i<9 ; i++) {
     lcd.write(byte(LCD_MID_EDGE));
   }
-  if (BatteryLv < 100)
+  if (CtrlPowerLv < 100)
     lcd.write(byte(LCD_RIGHT_EDGE));
   else
     lcd.write(byte(LCD_BLOCK));
 
-  lcd.printf(" %d%%", BatteryLv);
+  lcd.printf(" %d%%", CtrlPowerLv);
 
   lcd.home();
-  if (BatteryLv == 0) {
+  if (CtrlPowerLv == 0) {
     // Blink power critial message
     lcd.print("Power critial!");
     for(int i=0; i<2; i++) {
@@ -453,11 +492,14 @@ void lcd_printBatteryLv()
     lcd_backLight(false);
     lcd.clear();
   }
-  else if(BatteryLv != 100) {
-    lcd.print("Chg Incomplete!");
+  else if(CtrlPowerLv >= 100) {
+    lcd.print("Discharging...");
+  }
+  else if(BatteryLv > 0) {  // Transferring power from battery
+    lcd.print("Transferring...");
   }
   else {
-    lcd.print("Discharging...");
+    lcd.print("Please recharge!");
   }
   
 }
