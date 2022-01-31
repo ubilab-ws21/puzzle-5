@@ -111,6 +111,7 @@ enum BATTERY_LOC {
 // Game status variables
 int BatteryLv = 0;
 int BatteryLoc = LOC_UNKNOWN;
+int NFC_failCnt = 0;
 bool MQTT_received = false;
 
 
@@ -119,6 +120,7 @@ bool MQTT_received = false;
  *****************/
 
 void setup() {
+  setupNFC();   // Somehow it has to be initialized very early to make it able to read in long run
   Serial.begin(115200);
   Serial.println("\nSerial: up");
 
@@ -130,7 +132,6 @@ void setup() {
     ESP.restart();
   }
 #endif
-  setupNFC();
 
   lcd_printDefMsg();
 }
@@ -171,7 +172,7 @@ void loop() {
 #endif
 
   Serial.println("\n\nPlace a card to read!");
-  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 3000);  // timeout=0 -> blocking
+  success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);  // timeout=0 -> blocking
   if (success) {
     // Display some basic information about the card
     Serial.println("Found an ISO14443A card");
@@ -213,8 +214,13 @@ void loop() {
   }
   else {
     // Terry: Found some cards will make the read function fail forever. Restart is needed.
-    Serial.println("Failed to read a card! Try to reset.");
-    setupNFC();
+    Serial.println("No card is detected");
+    NFC_failCnt++;
+    if (NFC_failCnt >= 6) {
+      Serial.println("Failed to read a card! Try to reset.");
+      NFC_failCnt = 0;
+      setupNFC();
+    }
     lcd_printDefMsg();
 
     // Set battery's location to LOC_UNKNOWN if it was here
@@ -243,6 +249,7 @@ void setupNFC() {
 //  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
 //  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
 
+  delay(400); // May need some extra time to get the reader ready
   // configure board to read RFID tags
   nfc.SAMConfig();
 }
