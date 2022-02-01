@@ -384,7 +384,7 @@ bool mqttPubCtrlRmPwr(bool state)
   doc["state"] = state ? "solved" : "active";
   char json[200];
   serializeJson(doc, json);
-  return mqtt.publish(MQTT_TOPIC_CTL_PWR, json, true);
+  return mqtt.publish(MQTT_TOPIC_CTL_PWR, json, false);
 }
 
 void mqttCallback(char* topic, byte* message, unsigned int length)
@@ -419,6 +419,9 @@ void mqttCallback(char* topic, byte* message, unsigned int length)
       // Reset the game
       CtrlPowerLv = 0;
       CtrlRmPowerResumed = false;
+    }
+    else {
+      Serial.println("Content unrecognized");
     }
   }
   else {
