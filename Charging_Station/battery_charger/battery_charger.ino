@@ -450,8 +450,12 @@ void lcd_printBatteryLv()
   lcd.printf(" %d%%", BatteryLv);
 
   lcd.setCursor(0, 2);
-  if (BatteryLv >= 100)
+  if (BatteryLv >= 100) {
     lcd.print("Fully charged!");
-  else
+    lcd.setCursor(0,3);
+    lcd.print("Take out & close lid");
+  }
+  else {
     lcd.print("Keep charging!");
+  }
 }
