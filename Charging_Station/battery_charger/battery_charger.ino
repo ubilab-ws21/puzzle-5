@@ -43,7 +43,8 @@ PubSubClient mqtt(mqttClient);
 #define PN532_MOSI (23)
 #define PN532_SS   (5)
 #define PN532_MISO (19)
-Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
+//Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);  // Software SPI
+Adafruit_PN532 nfc(PN532_SS);   // Hardware SPI
 
 // LCD
 // Note: GPIO12 on ESP32 NodeMCU may not work
@@ -120,7 +121,6 @@ bool MQTT_received = false;
  *****************/
 
 void setup() {
-  setupNFC();   // Somehow it has to be initialized very early to make it able to read in long run
   Serial.begin(115200);
   Serial.println("\nSerial: up");
 
@@ -132,6 +132,7 @@ void setup() {
     ESP.restart();
   }
 #endif
+  setupNFC();
 
   lcd_printDefMsg();
 }
@@ -210,14 +211,17 @@ void loop() {
     delay(1000); // slow down loop interval
   }
   else {
-    // Terry: Found some cards will make the read function fail forever. Restart is needed.
-    Serial.println("No card is detected");
     NFC_failCnt++;
-    if (NFC_failCnt >= 6) {
-      Serial.println("Failed to read a card! Try to reset.");
+    if (NFC_failCnt >= 10) {
+      Serial.println("No card is detected in the past 10 pulls");
       NFC_failCnt = 0;
-      setupNFC();
+     
+     // Some cards will make the read function fail forever. Restart is needed.
+     // Issue seems to be eliminated after resolving issue #80
+     // This workaround is now unnecessary
+     //setupNFC();
     }
+
     lcd_printDefMsg();
 
     // Set battery's location to LOC_UNKNOWN if it was here
@@ -240,13 +244,12 @@ void setupNFC() {
   nfc.begin();
 
   // Try to get firmware version of the reader
-  // Not guarantee to success in initial run!
-//  uint32_t versiondata = nfc.getFirmwareVersion();
-//  Serial.print("NFC chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
-//  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
-//  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
+  // Not guarantee to success in initial run! Check issue #14, #80
+  uint32_t versiondata = nfc.getFirmwareVersion();
+  Serial.print("NFC chip PN5"); Serial.println((versiondata>>24) & 0xFF, HEX); 
+  Serial.print("Firmware ver. "); Serial.print((versiondata>>16) & 0xFF, DEC); 
+  Serial.print('.'); Serial.println((versiondata>>8) & 0xFF, DEC);
 
-  delay(400); // May need some extra time to get the reader ready
   // configure board to read RFID tags
   nfc.SAMConfig();
 }
