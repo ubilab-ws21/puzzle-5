@@ -172,7 +172,7 @@ void loop() {
   }
 #endif  // !DEBUG_OFFLINE
 
-  Serial.println("\n\nPlace a card to read!");
+  //Serial.println("\n\nPlace a card to read!");
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);  // timeout=0 -> blocking
   if (success) {
     // Display some basic information about the card
@@ -299,7 +299,7 @@ bool setupWiFi(unsigned int timeout) {
 bool setupMQTT()
 {
   bool res;
-  Serial.printf("Connecting to MQTT broker at %s:%d", MQTT_BROKER_IP, MQTT_PORT);
+  Serial.printf("Connecting to MQTT broker at %s:%d\n", MQTT_BROKER_IP, MQTT_PORT);
 #if DEBUG_LCD
   lcd.clear();
   lcd.print("Connect MQTT");
@@ -309,7 +309,7 @@ bool setupMQTT()
 
   mqtt.setServer(MQTT_BROKER_IP, MQTT_PORT);
 #if (defined MQTT_USERNAME) && (defined MQTT_PASSWD)
-  Serial.printf("Connecting with username: %s, password: %s\n", MQTT_USERNAME, MQTT_PASSWD);
+  Serial.printf("Connecting with username: %s\n", MQTT_USERNAME);
   res = mqtt.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWD);
 #else
   res = mqtt.connect(MQTT_CLIENT_ID);
@@ -325,7 +325,7 @@ bool setupMQTT()
     for(int i=0; i<sizeof (mqtt_sub_topics) / sizeof (const char *); i++) {
       Serial.printf("Subscribing to topic: %s\n", mqtt_sub_topics[i]);
       if (!mqtt.subscribe(mqtt_sub_topics[i])) {
-        Serial.printf("Failed to subscribe to the topic!");
+        Serial.printf("Failed to subscribe to the topic!\n");
         return false;
       }
     }
@@ -380,15 +380,15 @@ void mqttCallback(char* topic, byte* message, unsigned int length)
   if (strcmp(topic, MQTT_TOPIC_BTY_UID) == 0) {
     // Assume string in format "aa:bb:cc:dd"
     sscanf(mqtt_decoder["data"], "%x:%x:%x:%x", &BATTERY_UID[0], &BATTERY_UID[1], &BATTERY_UID[2], &BATTERY_UID[3]);
-    Serial.printf("Received battery's UID: %x:%x:%x:%x", BATTERY_UID[0], BATTERY_UID[1], BATTERY_UID[2], BATTERY_UID[3]);
+    Serial.printf("Received battery's UID: %x:%x:%x:%x\n", BATTERY_UID[0], BATTERY_UID[1], BATTERY_UID[2], BATTERY_UID[3]);
   }
   else if (strcmp(topic, MQTT_TOPIC_BTY_LV) == 0) {
     int batLv = mqtt_decoder["data"]; // TODO: Error handling in case data doesn't exist
-    Serial.printf("Received battery level: %d", batLv);
+    Serial.printf("Received battery level: %d\n", batLv);
     BatteryLv = batLv;
   }
   else if (strcmp(topic, MQTT_TOPIC_BTY_LOC) == 0) {
-    Serial.printf("Receive battery location: %d", BatteryLoc);
+    Serial.printf("Receive battery location: %d\n", BatteryLoc);
     BatteryLoc = mqtt_decoder["data"];
   }
   else {
