@@ -169,7 +169,7 @@ void loop() {
     MQTT_received = false;
     return;
   }
-#endif
+#endif  // !DEBUG_OFFLINE
 
   Serial.println("\n\nPlace a card to read!");
   success = nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLength, 500);  // timeout=0 -> blocking
@@ -192,11 +192,8 @@ void loop() {
         BatteryLv = 100;  // In case MQTT set it to a strange value
         
        // Publish battery level if it is changed
-#if !DEBUG_OFFLINE
       if (prevBatLv != BatteryLv)
         mqttPubBatLv(BatteryLv);
-#endif
-
       lcd_printBatteryLv();
 
       // Update location
@@ -341,6 +338,9 @@ bool setupMQTT()
 
 bool mqttPubBatLv(int batLv)
 {
+#if DEBUG_OFFLINE
+  return true;
+#endif
   StaticJsonDocument<200> doc;
   doc["method"] = "message";
   doc["data"] = batLv;
@@ -351,6 +351,9 @@ bool mqttPubBatLv(int batLv)
 
 bool mqttPubBatLoc(int loc)
 {
+#if DEBUG_OFFLINE
+  return true;
+#endif
   StaticJsonDocument<200> doc;
   doc["method"] = "message";
   doc["data"] = loc;
