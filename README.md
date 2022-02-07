@@ -7,14 +7,15 @@ For progress updates, please check `/docs/Minutes`.
 
 ## Story Overview
 A Solar storm hits the city which causes a power outage at a massive scale. A group of interns/visitors are struck in the control room. They have to solve a series of puzzles in order to fix the power supply and to get out of the power station eventually.
+
 ## The Puzzle
 The objective of this puzzle is to recharge a super nuclear battery and reinstall it into the electric box in order to resume the power of the control room.
 
-Initially the battery is installed on the electric box but the battery is discharged due to the sudden power outage. The nuclear battery charger is also inside the control room. It is being locked in a box for safety reason.
+Initially the battery is placed on the electric box to supply emergengy electricity to the control room. However the battery is completely discharged after the sudden power outage. The nuclear battery charger is also inside the control room. It is being locked in a box for safety reason.
 
 Next to the station is a small toy called HoloCube, which was built by the bored control room's technician as a funnier way to unlock the charger box in case the box's password is forgotten. The cube has the game 2048 loaded into it. (If you don't know about 2048, you can have a try [here](https://2048game.com/)).
 
-Thanks to the advanced technology, the battery is operated in fully wireless. It only needs to be placed on the platform for a couple of seconds until full charged. Then place it back to the electric box to supply the power for the control room.
+Thanks to the advanced technology, the battery is operated in fully wireless. It only needs to be placed on the platform for a couple of seconds until full charged. Then place it back to the electric box to supply the basic power of the control room.
 
 The general flow of the puzzle is as shown below:
 
