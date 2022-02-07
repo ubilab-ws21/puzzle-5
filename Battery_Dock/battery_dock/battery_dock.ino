@@ -31,6 +31,7 @@ uint8_t BATTERY_UID[4] = {0xB3, 0x5B, 0xF2, 0xBB};
 #define MQTT_TOPIC_BTY_LOC "5/battery/1/location"
 #define MQTT_TOPIC_BTY_UID "5/battery/1/uid"
 #define MQTT_TOPIC_CTL_PWR "5/control_room/power"
+#define MQTT_TOPIC_AR_HINT "game/puzzle5"
 const char* mqtt_sub_topics[] = {
   MQTT_TOPIC_BTY_LV,
   MQTT_TOPIC_BTY_LOC,
@@ -196,9 +197,10 @@ void loop() {
       }
 
       if (CtrlPowerLv >= 100 && !CtrlRmPowerResumed) {
-        // Resume power of control room
+        // Puzzle solved! Resume power of control room
         if (mqttPubCtrlRmPwr(true)) {
           CtrlRmPowerResumed = true;
+          mqttPubARstate(true); // send "Solved" to AR topic
           Serial.println("Control room power resumed!");
         } else {
           Serial.println("Failed to publish MQTT control room power trigger");
@@ -348,6 +350,19 @@ bool setupMQTT()
   return res;
 }
 
+bool mqttPubGeneral(char* topic, char* method, char* state, char* data) {
+#if DEBUG_OFFLINE
+  return true;
+#endif
+  StaticJsonDocument<200> doc;
+  doc["method"] = method;
+  doc["state"] = state;
+  doc["data"] = data;
+  char json[200];
+  serializeJson(doc, json);
+  return mqtt.publish(topic, json, true);
+}
+
 bool mqttPubBatLv(int batLv)
 {
 #if DEBUG_OFFLINE
@@ -387,6 +402,14 @@ bool mqttPubCtrlRmPwr(bool state)
   return mqtt.publish(MQTT_TOPIC_CTL_PWR, json, false);
 }
 
+bool mqttPubARstate(bool state)
+{
+#if DEBUG_OFFLINE
+  return true;
+#endif
+  return mqtt.publish(MQTT_TOPIC_AR_HINT, state ? "Solved" : "Activated", false);
+}
+
 void mqttCallback(char* topic, byte* message, unsigned int length)
 {
   StaticJsonDocument<200> mqtt_decoder;
@@ -414,11 +437,13 @@ void mqttCallback(char* topic, byte* message, unsigned int length)
     BatteryLoc = mqtt_decoder["data"];
   }
   else if (strcmp(topic, MQTT_TOPIC_CTL_PWR) == 0 && 
-           strcmp(mqtt_decoder["method"], "status") == 0) {
-    if (strcmp(mqtt_decoder["state"], "active") == 0) {
+           strcmp(mqtt_decoder["method"], "trigger") == 0) {
+    if (strcmp(mqtt_decoder["state"], "on") == 0) {
       // Reset the game
+      mqttPubBatLv(0);
       CtrlPowerLv = 0;
       CtrlRmPowerResumed = false;
+      mqttPubARstate(false);  // send "Activated" to AR topic
     }
     else {
       Serial.println("Content unrecognized");
