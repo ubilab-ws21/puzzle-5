@@ -1,6 +1,6 @@
-#define JOYSTICK_XOUT 15
-#define JOYSTICK_YOUT 2
-#define JOYSTICK_SEL 4
+#define JOYSTICK_XOUT 26
+#define JOYSTICK_YOUT 27
+#define JOYSTICK_SEL 14
 
 void setup() {
   Serial.begin(115200);
