@@ -33,6 +33,14 @@ The proposed model of HoloCube for the puzzle is showcased below:
 
 <img src="docs/Presentations/img/Holo3.png" width="80%" />
 
+PCB rev. 1
+
+<img src="docs/Presentations/img/PCB_rev1.jpg" width="50%" />
+
+PCB rev. 3
+
+<img src="docs/Presentations/img/PCB_rev3.JPG" width="50%" />
+
 ### Charging Station
 
 The charging station is a wooden box locked by a mechanical lock. Inside the box is the wireless charging platform (charger), which is technically a NFC reader. A LCD will act as a battery level indicator to. There are also LED lightings inside the box.
